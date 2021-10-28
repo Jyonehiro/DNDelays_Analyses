@@ -1,0 +1,170 @@
+---
+title: "Day Night Delay Analysis Script"
+author: Jade Yonehiro
+output:
+  html_document:
+    theme: cosmo
+    highlight: breezedark
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    code_download: true
+---
+Analyses for the paper: Wait! Does Imposing Delays Improve Children's Inhibitory Control?  
+Authors: Jade Yonehiro, Jane Barker, Anne Roche and Yuko Munakata  
+Contact: Jnyonehiro@ucdavis.edu  
+
+# Set up
+```{r message=FALSE, warning=FALSE}
+#read in file
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(dplyr)
+library(yarrr)
+library (ggplot2)
+library(lmSupport)
+library(lme4)
+library(lmerTest)
+library(car)         # Needed for McSummary()
+library(moments)     # Needed for skewness() and kurtosis() 
+source('http://psych.colorado.edu/~jclab/R/mcSummaryLm.R')
+
+#Read in data set
+finsamp <- read.csv("C:/Users/Jade/Dropbox/0_Studies/6_DayNight_2020/DN_Final_2020.csv")
+# Read in variable codebook
+codebook <- read.csv("C:/Users/Jade/Dropbox/0_Studies/6_DayNight_2020/DNCodeBook.csv")
+
+#Create html table to display codebook
+codebook %>%
+  kbl() %>%
+  kable_styling()
+
+#Fix variables to be in correct format
+finsamp<-finsamp%>%
+  mutate(AgeDays = as.numeric(AgeDays),         # Make age numeric
+         DNCondition = as.factor(DNCondition),  # Make condition a factor
+         # Set up contrasts
+         DNCondition = ifelse(DNCondition == "BETWEEN",0,              # Between = ditty between trials (control condition)
+                              ifelse(DNCondition == "WITHIN",1,NA)))   # within = ditty within trials (delay condition) 
+```
+
+
+## Age-restricted sample: 3.5 year cutoff  
+Children were recruited from a database of families who had volunteered to participate as part of a larger study with additional measures targeting children aged 3.0 - 5.0 years. 59 of the children in the total sample fell outside of the a priori target age range of the current study (3.5-5.0 years) and were not included. 
+```{r}
+dnsamp <- subset(finsamp, AgeYears >=3.5)       # Restrict sample to 3.5+ 
+```
+
+
+## Correlation across coders
+- Correlation between X and Y = 0.987 for the final data set. Coder Y did not code the full data set (only 32/68 total participants).
+- Take mean scores across coders to calculate total correct trials
+```{r}
+#Get correlation
+cor.test(dnsamp$TotCorr.y,dnsamp$TotCorr.x)     #.98 for this subset
+
+#Get mean score across coders
+dnsamp$FinCorrect <- rowMeans(dnsamp[c("TotCorr.y","TotCorr.x")], na.rm=TRUE) 
+```
+
+# Assumptions checks
+```{r}
+#Check distribution: they are highly skewed
+#hist(dnsamp$FinCorrect)
+skewness(dnsamp$FinCorrect) #These data are heavily negatively skewed
+kurtosis(dnsamp$FinCorrect) #These data are leptokurtic (peak at mean)
+
+# Square responses
+dnsamp$Fin2 <- ((dnsamp$FinCorrect)^2)        # Squared is the better solution
+#hist(dnsamp$Fin2)
+
+# Cubed response 
+dnsamp$Fin3 <- ((dnsamp$FinCorrect)^3)
+#hist(dnsamp$Fin3)
+```
+
+
+# Analyses
+## Descriptives
+```{r}
+descriptives<-dnsamp%>%
+  group_by(DNCondition)%>%
+  summarise(MeanFinCorrect=mean(FinCorrect),
+            se = sd(FinCorrect)/sqrt(length(FinCorrect)))
+descriptives
+```
+
+
+## Model 1
+Q: Does condition predict # of correct responses?
+NOTE: Outcome variable is squared, so interpretation of the coefficients is tricky and they may look crazy! 
+```{r}
+Model_1<-lm(Fin2~DNCondition, data=dnsamp)    # Using squared outcome variable
+mcSummary(Model_1)
+# plot(Model_1)                               # Check assumptions again
+```
+
+# Exploratory Analyses
+Q: Did Age predict children's accuracy? Did age interact with condition?
+```{r}
+Model_2_Age<-lm(Fin2~DNCondition*AgeYears, data=dnsamp) 
+mcSummary(Model_2_Age)
+#plot(Model_2_Age)
+
+# Age * Condition interaction was redundant with condition (tol = 0.007), so it was removed to resolve multicollinearity (tol = .10 recommended for minimum tolerance;Tabachnick & Fidell, 2001; also see Daud, 2017; Slinker & Glantz 1985).
+
+
+Model_3_Age<-lm(Fin2~DNCondition+AgeYears, data=dnsamp)  
+mcSummary(Model_3_Age)
+#plot(Model_3_Age)
+```
+
+
+#Plot
+```{r}
+#Prep data set for graphing
+graphdf<-dnsamp%>%                                                   # Create new data set for graphing
+  mutate("Condition" = ifelse(DNCondition == 0, 'Control',           # Relabel our contrasts to match our conditions in the paper
+                             ifelse(DNCondition == 1, 'Delay', NA)), 
+         Condition = as.factor(Condition)#,                          # Make sure condition is the right type (factor)
+        # Age = round(AgeYears, digits=1),                           # Round age to a whole number 
+        # Age = case_when(Age>=3.5 & Age <= 3.9 ~ "3.5-3.9",
+        #                 Age>=4.0 & Age <= 4.4 ~ "4.0-4.5",
+        #                 Age>=4.5 & Age <= 4.9 ~ "4.5-5.0")
+         )%>%
+  group_by(Condition)%>%                                             # Group the data set by condition  
+  # summarize the data
+  summarise(meanCorrect=mean(FinCorrect),                            # get group means
+            n=length(FinCorrect),
+            sd=sd(FinCorrect),
+            se = sd/sqrt(n))                                         # get group SE
+```
+
+```{r}
+plot1<-ggplot(graphdf,aes(Condition,meanCorrect, fill=Condition))+
+  geom_bar(stat = 'identity', color='black', position = position_dodge())+
+  geom_errorbar(aes(ymin=meanCorrect-se, ymax=meanCorrect + se), width=.2,
+                  position=position_dodge(.9)) + 
+  ggtitle("Average Number of Correct Trials in Delay and Control Conditons") +
+  ylab("Average Numner of Correct Trials")+
+  xlab("Day-Night Stroop Condition")+
+  scale_fill_manual(values=c("gray91", "gray20")) +
+  ylim(0,16)+
+  theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent"), # get rid of legend panel bg
+    legend.key = element_rect(fill = "transparent", colour = NA), # get rid of key legend fill, and of the surrounding
+    axis.line = element_line(colour = "black"), # adding a black line for x and y axis
+    plot.title = element_text(hjust = 0.9)
+  )
+  
+plot1
+
+# save plot
+ggsave(plot1, filename = "DN_acc_plot.png",  bg = "transparent")
+```

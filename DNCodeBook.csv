@@ -1,0 +1,13 @@
+﻿Variable Name,Description
+DNCondition,BETWEEN = Control condition; WITHIN = Delay condition
+DNStatus,If participant data should be kept or dropped
+AgeDays,Age in days (originally calculated using dob: removed for privacy)
+AgeYears,Age in years
+DNStatus.x,For Coder 1: If participant data should be kept or dropped
+DNCondition.x,For Coder 1: BETWEEN = Control condition; WITHIN = Delay condition
+Child.Ditty.x,For Coder 1: Whether child sang along to the ditty
+TotCorr.x,For Coder 1: sum number of correct responses
+DNStatus.y,For Coder 2: If participant data should be kept or dropped
+DNCondition.y,For Coder 2: BETWEEN = Control condition; WITHIN = Delay condition
+Child.Ditty.y,For Coder 2: Whether child sang along to the ditty
+TotCorr.y,For Coder 2: sum number of correct responses
