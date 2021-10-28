@@ -1,5 +1,5 @@
 # DNDelays_Analyses
-This repository contains de-identfied data and analysis scripts for the project "Wait! Does Imposing Delays Improve Children's Inhibitory Control?"
+This repository contains de-identified  data and analysis scripts for the project "Wait! Does Imposing Delays Improve Children's Inhibitory Control?"
 Authors: Jade Noelani Yonehiro, Jane Barker, Anne Roche, & Yuko Munakata
 
 Study Description: 
